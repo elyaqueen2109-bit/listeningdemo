@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Speaking Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+
+<style>
+  :root {
+    --bg-space: #09090b;
+    --bg-card: rgba(24, 24, 27, 0.7);
+    --primary: #8B5CF6;
+    --primary-glow: rgba(139, 92, 246, 0.5);
+    --secondary: #06B6D4;
+    --secondary-glow: rgba(6, 182, 212, 0.5);
+    --text-main: #F8FAFC;
+    --text-light: #94A3B8;
+    --danger: #F43F5E;
+    --border: rgba(255, 255, 255, 0.1);
+    --locked-bg: rgba(255, 255, 255, 0.02);
+    --locked-border: rgba(255, 255, 255, 0.05);
+  }
+  
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background-color: var(--bg-space);
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.15), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.15), transparent 25%);
+    color: var(--text-main);
+    margin: 0; padding: 20px;
+    display: flex; justify-content: center;
+    min-height: 100vh;
+  }
+
+  .container {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    width: 100%; max-width: 850px; padding: 40px;
+    border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+
+  .floating-title {
+    font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 900;
+    text-align: center; margin-bottom: 20px;
+    background: linear-gradient(to right, var(--secondary), var(--primary));
+    -webkit-background-clip: text; color: transparent;
+    animation: float 6s ease-in-out infinite; text-transform: uppercase; letter-spacing: 2px;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); text-shadow: 0 0 10px var(--primary-glow); }
+    50% { transform: translateY(-10px); text-shadow: 0 0 20px var(--primary-glow), 0 0 30px var(--secondary-glow); }
+    100% { transform: translateY(0px); text-shadow: 0 0 10px var(--primary-glow); }
+  }
+
+  .screen { display: none; animation: fadeIn 0.5s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+  /* --- TABS MENU (GRID) --- */
+  .themes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 20px;
+    max-height: 480px;
+    overflow-y: auto;
+    padding: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .themes-grid::-webkit-scrollbar { width: 8px; }
+  .themes-grid::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+
+  .theme-btn {
+    background: rgba(255, 255, 255, 0.03); color: var(--text-main); border: 1px solid var(--border);
+    padding: 20px; border-radius: 20px; cursor: pointer; font-size: 15px; font-weight: 600; text-align: left;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .theme-btn:hover:not(.locked) { 
+    background: rgba(139, 92, 246, 0.15); 
+    border-color: var(--primary); 
+    transform: translateY(-5px); 
+    box-shadow: 0 10px 20px rgba(139, 92, 246, 0.3); 
+  }
+
+  /* Красивая кнопка Демо */
+  .theme-btn.demo {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.2));
+    border-color: var(--secondary);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+  }
+
+  /* Заблокированные кнопки */
+  .theme-btn.locked {
+    background: var(--locked-bg);
+    border: 1px dashed var(--locked-border);
+    color: var(--text-light);
+    cursor: pointer;
+    opacity: 0.7;
+  }
+  .theme-btn.locked:hover {
+    opacity: 1;
+    border-color: var(--danger);
+    background: rgba(244, 63, 94, 0.05);
+  }
+  .lock-icon {
+    font-size: 18px;
+    opacity: 0.8;
+  }
+
+  /* --- OTHER BUTTONS --- */
+  .random-btn {
+    font-family: 'Orbitron', sans-serif;
+    background: linear-gradient(135deg, #475569, #334155);
+    color: white; border: 1px solid var(--border); padding: 20px; font-size: 18px; font-weight: 700; border-radius: 20px; cursor: pointer;
+    width: 100%; margin-bottom: 20px;
+    transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+  .random-btn:hover { background: #475569; transform: translateY(-2px); }
+
+  #screen-ready { text-align: center; padding: 80px 0; }
+  .countdown-circle {
+    font-family: 'Orbitron', sans-serif; width: 150px; height: 150px; border-radius: 50%;
+    background: radial-gradient(circle, var(--primary) 0%, transparent 70%); border: 2px solid var(--primary);
+    color: white; font-size: 70px; font-weight: 900; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 30px auto; box-shadow: 0 0 40px var(--primary-glow), inset 0 0 20px var(--primary-glow);
+    animation: pulse 1s infinite alternate;
+  }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+
+  .header-exam { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .q-counter { font-family: 'Orbitron', sans-serif; font-weight: 700; color: var(--secondary); font-size: 18px; }
+  .timer { font-family: 'Orbitron', sans-serif; font-size: 24px; font-weight: 900; color: var(--danger); text-shadow: 0 0 10px rgba(244, 63, 94, 0.5); }
+  
+  .audio-box {
+    background: rgba(0,0,0,0.3); border: 1px solid var(--secondary);
+    border-radius: 20px; padding: 40px; margin: 20px 0; text-align: center;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.2) inset;
+  }
+  .status-text { font-size: 20px; font-weight: 700; color: var(--secondary); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px;}
+
+  .rec-btn {
+    font-family: 'Orbitron', sans-serif; background: transparent; color: var(--danger); border: 2px solid var(--danger); 
+    padding: 20px 40px; font-size: 18px; border-radius: 50px; cursor: pointer; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 15px; margin: 20px auto;
+    transition: all 0.3s ease; text-transform: uppercase;
+  }
+  .rec-btn:hover { background: rgba(244, 63, 94, 0.1); box-shadow: 0 0 20px rgba(244, 63, 94, 0.3); }
+  .rec-btn.recording { background: var(--danger); color: white; animation: pulse-red 1.5s infinite; }
+  @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(244, 63, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); } }
+  
+  .processing-text { display: none; color: var(--secondary); font-weight: bold; margin-top: 15px; animation: pulse 1s infinite alternate; }
+
+  button.main-btn {
+    font-family: 'Orbitron', sans-serif; background: var(--primary); color: white; border: none; padding: 20px;
+    font-size: 18px; font-weight: 700; border-radius: 15px; cursor: pointer; width: 100%; margin-top: 20px; transition: all 0.3s; text-transform: uppercase;
+  }
+  button.main-btn:hover:not(:disabled) { background: #7C3AED; box-shadow: 0 0 20px var(--primary-glow); }
+  button.main-btn:disabled { background: rgba(255,255,255,0.1); color: var(--text-light); cursor: not-allowed; }
+
+  .back-btn { background: none; border: none; color: var(--text-light); font-weight: 700; cursor: pointer; font-family: 'Orbitron', sans-serif; }
+  .back-btn:hover { color: var(--danger); }
+
+  .results-list { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
+  .result-item {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .download-btn {
+    background: var(--secondary); color: #000; text-decoration: none; font-weight: 700;
+    padding: 10px 20px; border-radius: 10px; font-family: 'Orbitron', sans-serif; font-size: 14px;
+  }
+  .download-btn:hover { background: #22D3EE; box-shadow: 0 0 15px var(--secondary-glow); }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div id="screen-menu" class="screen active">
+    <h1 class="floating-title">Space Speaking</h1>
+    
+    <button class="random-btn" onclick="openDonate()">
+      🎲 Random Question <span class="lock-icon">🔒</span>
+    </button>
+
+    <div class="themes-grid" id="themes-grid"></div>
+
+    <p style="text-align: center; color: var(--text-light); font-size: 14px; margin-top: 10px;">
+      🔒 Unlock all 40 topics via <a href="#" onclick="openDonate(event)" style="color: var(--secondary); text-decoration: none; font-weight: bold;">VK Donut</a>
+    </p>
+  </div>
+
+  <div id="screen-ready" class="screen">
+    <h1 id="ready-theme-title" style="font-family: 'Orbitron'; color: var(--secondary); text-transform: uppercase; letter-spacing: 2px;"></h1>
+    <div class="countdown-circle" id="countdown-number">3</div>
+    <h2 style="font-family: 'Space Grotesk'; color: var(--text-light);">Get Ready...</h2>
+  </div>
+
+  <div id="screen-exam" class="screen">
+    <div class="header-exam">
+      <button class="back-btn" onclick="backToMenu()">← QUIT</button>
+      <div class="q-counter" id="question-counter">QUESTION 1 / 6</div>
+      <div class="timer" id="timer-display">40s</div>
+    </div>
+    
+    <h2 id="theme-title" style="text-align: center; color: var(--text-light); font-size: 16px; letter-spacing: 1px;"></h2>
+
+    <div class="audio-box">
+      <div class="status-text" id="status-text">Playing Audio...</div>
+      <audio id="audio-player" style="width: 100%; margin-top: 10px; outline: none;"></audio>
+    </div>
+    
+    <button class="rec-btn" id="record-btn" onclick="toggleRecording()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+      Start Recording
+    </button>
+    <div class="processing-text" id="processing-text">Converting to MP3...</div>
+
+    <button class="main-btn" id="next-btn" onclick="nextQuestion()" disabled>Next Question ➔</button>
+  </div>
+
+  <div id="screen-results" class="screen">
+    <h1 class="floating-title" style="font-size: 28px;">Mission Complete</h1>
+    <p style="text-align: center; color: var(--text-light);">Download your answers below.</p>
+    
+    <button class="main-btn" onclick="downloadAsOneMp3()" style="background: var(--secondary); color: #000; margin-bottom: 15px;">
+      🎵 Download All as ONE MP3
+    </button>
+    
+    <button class="main-btn" onclick="downloadAllZip()" style="background: transparent; border: 1px solid var(--border); margin-bottom: 25px; color: var(--text-main);">
+      📦 Download Separate Files (.zip)
+    </button>
+
+    <div class="results-list" id="results-list"></div>
+
+    <button class="main-btn" onclick="backToMenu()" style="margin-top: 30px; background: transparent; border: 1px solid var(--primary);">Return to Base</button>
+  </div>
+
+</div>
+
+<script>
+  // --- НАСТРОЙКИ ССЫЛКИ НА ДОНАТ ---
+  const DONATE_LINK = "https://vk.com/donut/ВАША_ССЫЛКА"; 
+
+  // ВНИМАНИЕ: isFree: true теперь стоит у "school" (1) и "weekends" (3)
+  const THEMES = [
+    { title: "1. School", folder: "school", isFree: true },
+    { title: "2. Holidays", folder: "holidaysandspecialdays", isFree: false },
+    { title: "3. Weekends", folder: "weekends", isFree: true }, // <-- Вторая бесплатная тема
+    { title: "4. School events", folder: "attitudetoschoolevents", isFree: false },
+    { title: "5. TV programmes", folder: "tvandtvprogrammes", isFree: false },
+    { title: "6. Daily routine", folder: "teenagersdailyroutine", isFree: false },
+    { title: "7. Foreign languages", folder: "learningforeignlanguages", isFree: false },
+    { title: "8. Free time", folder: "freetime", isFree: false },
+    { title: "9. Sports at school", folder: "sportsatschool", isFree: false },
+    { title: "10. Attitude to Sports", folder: "attitudetosport", isFree: false },
+    { title: "11. Internet", folder: "usingtheinternetandspendingtimeonline", isFree: false },
+    { title: "12. Holidays 2", folder: "holidaysandspecialdays2", isFree: false },
+    { title: "13. Future Career", folder: "futurecareer", isFree: false },
+    { title: "14. Homework", folder: "homework", isFree: false },
+    { title: "15. Spend holidays", folder: "spendholidays", isFree: false },
+    { title: "16. School holidays", folder: "schoolholidays", isFree: false },
+    { title: "17. Daily Routines", folder: "dailyroutines", isFree: false },
+    { title: "18. Sports", folder: "sports", isFree: false },
+    { title: "19. School 2", folder: "school2", isFree: false },
+    { title: "20. City or Village", folder: "citytownorvillage", isFree: false },
+    { title: "21. English learning", folder: "englishlearninghabits", isFree: false },
+    { title: "22. Eating habits", folder: "eatinghabits", isFree: false },
+    { title: "23. School 3", folder: "school3", isFree: false },
+    { title: "24. Shopping centers", folder: "shoppingandshoppingcentres", isFree: false },
+    { title: "25. Mobile phones", folder: "mobilephones", isFree: false },
+    { title: "26. Music and arts", folder: "musicandtheotherarts", isFree: false },
+    { title: "27. Shopping", folder: "shoppingandclothes", isFree: false },
+    { title: "28. Reading", folder: "reading", isFree: false },
+    { title: "29. Mass Media", folder: "massmedia", isFree: false },
+    { title: "30. Ecology", folder: "ecologicalproblems", isFree: false },
+    { title: "31. Reading habits", folder: "teenagersreadinghabits", isFree: false },
+    { title: "32. Best Friend", folder: "bestfriends", isFree: false },
+    { title: "33. Pets and animals", folder: "petsandanimals", isFree: false },
+    { title: "34. Eating habits 2", folder: "eatinghabits2", isFree: false },
+    { title: "35. Daily routines 2", folder: "dailyroutines2", isFree: false },
+    { title: "36. TV", folder: "tv", isFree: false },
+    { title: "37. Computers", folder: "computers", isFree: false },
+    { title: "38. Mobile phones 2", folder: "usingmobilephones", isFree: false },
+    { title: "39. City 2", folder: "citytownorvillage2", isFree: false },
+    { title: "40. Film Industry", folder: "modernfilmindustry", isFree: false }
+  ];
+
+  let currentThemeIndex = -1;
+  let currentQuestionNum = 1;
+  
+  const audioPlayer = document.getElementById('audio-player');
+  let timerInterval;
+  let timeLeft = 40;
+
+  let mediaRecorder;
+  let audioChunks = [];
+  let isRecording = false;
+  const recordBtn = document.getElementById('record-btn');
+  const processingText = document.getElementById('processing-text');
+  
+  let savedAnswers = []; 
+
+  function initMenu() {
+    const grid = document.getElementById('themes-grid');
+    grid.innerHTML = '';
+    
+    THEMES.forEach((theme, index) => {
+      const btn = document.createElement('button');
+      
+      if (theme.isFree) {
+        btn.className = 'theme-btn demo';
+        btn.innerHTML = `<span>🎁 ${theme.title}</span>`;
+        btn.onclick = () => startTheme(index);
+      } else {
+        btn.className = 'theme-btn locked';
+        btn.innerHTML = `<span>${theme.title}</span><span class="lock-icon">🔒</span>`;
+        btn.onclick = () => openDonate();
+      }
+      
+      grid.appendChild(btn);
+    });
+  }
+  initMenu();
+
+  function openDonate(e) {
+    if(e) e.preventDefault();
+    window.open(DONATE_LINK, '_blank');
+  }
+
+  function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+  }
+
+  function backToMenu() {
+    stopAllAudio();
+    savedAnswers = []; 
+    showScreen('screen-menu');
+  }
+
+  function startTheme(index) {
+    currentThemeIndex = index;
+    currentQuestionNum = 1;
+    savedAnswers = [];
+    document.getElementById('theme-title').innerText = THEMES[index].title;
+    document.getElementById('ready-theme-title').innerText = THEMES[index].title;
+    showScreen('screen-ready');
+    startCountdown();
+  }
+
+  function startCountdown() {
+    let count = 3;
+    const countdownEl = document.getElementById('countdown-number');
+    countdownEl.innerText = count;
+    
+    const countInterval = setInterval(() => {
+      count--;
+      if (count > 0) {
+        countdownEl.innerText = count;
+      } else {
+        clearInterval(countInterval);
+        showScreen('screen-exam');
+        loadQuestion();
+      }
+    }, 1000);
+  }
+
+  function loadQuestion() {
+    stopAllAudio();
+    let themeFolder = THEMES[currentThemeIndex].folder;
+    let audioSrc = `${themeFolder}/${currentQuestionNum}.mp3`;
+    
+    document.getElementById('question-counter').innerText = `QUESTION ${currentQuestionNum} / 6`;
+    document.getElementById('status-text').innerText = "Listening to question...";
+    audioPlayer.src = audioSrc;
+    audioPlayer.play().catch(e => {
+      document.getElementById('status-text').innerText = "⚠️ Audio file not found";
+    });
+
+    const nextBtn = document.getElementById('next-btn');
+    nextBtn.disabled = true;
+
+    audioPlayer.onended = () => {
+      document.getElementById('status-text').innerText = "Your turn! Record your answer.";
+      startTimer();
+      nextBtn.disabled = false;
+    };
+  }
+
+  function nextQuestion() {
+    stopAllAudio();
+    if (currentQuestionNum >= 6) {
+      showResults();
+      return;
+    }
+    currentQuestionNum++;
+    loadQuestion();
+  }
+
+  function startTimer() {
+    timeLeft = 40;
+    document.getElementById('timer-display').innerText = `${timeLeft}s`;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      document.getElementById('timer-display').innerText = `${timeLeft}s`;
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        stopRecording();
+        document.getElementById('status-text').innerText = "Time is up! Click Next.";
+      }
+    }, 1000);
+  }
+
+  function stopAllAudio() {
+    audioPlayer.pause();
+    audioPlayer.currentTime = 0;
+    clearInterval(timerInterval);
+    stopRecording();
+    document.getElementById('timer-display').innerText = "40s";
+    document.getElementById('status-text').innerText = "Loading...";
+    document.getElementById('next-btn').disabled = true;
+  }
+
+  async function toggleRecording() {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = event => { audioChunks.push(event.data); };
+
+        mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(track => track.stop());
+          processingText.style.display = 'block';
+          recordBtn.style.display = 'none';
+
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          
+          try {
+            const { mp3Blob, audioBuffer } = await convertToMp3(audioBlob);
+            savedAnswers.push({
+              questionNum: currentQuestionNum,
+              blob: mp3Blob,
+              ext: 'mp3',
+              buffer: audioBuffer
+            });
+          } catch (err) {
+            console.error(err);
+          }
+
+          processingText.style.display = 'none';
+          recordBtn.style.display = 'flex';
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        recordBtn.classList.add('recording');
+        recordBtn.innerHTML = 'Stop Recording';
+      } catch (err) {
+        alert("Microphone access denied.");
+      }
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); }
+    isRecording = false;
+    recordBtn.classList.remove('recording');
+    recordBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Start Recording';
+  }
+
+  async function convertToMp3(webmBlob) {
+    const arrayBuffer = await webmBlob.arrayBuffer();
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const left = audioBuffer.getChannelData(0);
+    const right = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : left;
+    const mp3encoder = new lamejs.Mp3Encoder(2, audioBuffer.sampleRate, 128);
+    const mp3Data = [];
+    const sampleBlockSize = 1152;
+
+    function floatTo16BitPCM(input) {
+      const output = new Int16Array(input.length);
+      for (let i = 0; i < input.length; i++) {
+        const s = Math.max(-1, Math.min(1, input[i]));
+        output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return output;
+    }
+
+    const left16 = floatTo16BitPCM(left);
+    const right16 = floatTo16BitPCM(right);
+
+    for (let i = 0; i < left16.length; i += sampleBlockSize) {
+      const leftChunk = left16.subarray(i, i + sampleBlockSize);
+      const rightChunk = right16.subarray(i, i + sampleBlockSize);
+      const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+      if (mp3buf.length > 0) mp3Data.push(new Int8Array(mp3buf));
+    }
+    const mp3buf = mp3encoder.flush();
+    if (mp3buf.length > 0) mp3Data.push(new Int8Array(mp3buf));
+
+    return { 
+      mp3Blob: new Blob(mp3Data, { type: 'audio/mp3' }),
+      audioBuffer: audioBuffer
+    };
+  }
+
+  async function downloadAsOneMp3() {
+    if (savedAnswers.length === 0) return;
+    const btn = document.querySelector('button[onclick="downloadAsOneMp3()"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = "⏳ Mixing...";
+    btn.disabled = true;
+
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      let totalLength = 0;
+      const pauseSamples = audioContext.sampleRate * 1;
+      savedAnswers.forEach(ans => { totalLength += ans.buffer.length + pauseSamples; });
+
+      const finalBuffer = audioContext.createBuffer(savedAnswers[0].buffer.numberOfChannels, totalLength, audioContext.sampleRate);
+      let offset = 0;
+      
+      for (let ch = 0; ch < finalBuffer.numberOfChannels; ch++) {
+        const channelData = finalBuffer.getChannelData(ch);
+        savedAnswers.forEach(ans => {
+          const data = ans.buffer.numberOfChannels > ch ? ans.buffer.getChannelData(ch) : ans.buffer.getChannelData(0);
+          channelData.set(data, offset);
+          offset += data.length + pauseSamples;
+        });
+        offset = 0; 
+      }
+
+      const left = finalBuffer.getChannelData(0);
+      const right = finalBuffer.numberOfChannels > 1 ? finalBuffer.getChannelData(1) : left;
+      const mp3encoder = new lamejs.Mp3Encoder(2, finalBuffer.sampleRate, 128);
+      const mp3Data = [];
+      const sampleBlockSize = 1152;
+
+      function floatTo16BitPCM(input) {
+        const output = new Int16Array(input.length);
+        for (let i = 0; i < input.length; i++) {
+          const s = Math.max(-1, Math.min(1, input[i]));
+          output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        return output;
+      }
+      const left16 = floatTo16BitPCM(left);
+      const right16 = floatTo16BitPCM(right);
+
+      for (let i = 0; i < left16.length; i += sampleBlockSize) {
+        const mp3buf = mp3encoder.encodeBuffer(left16.subarray(i, i + sampleBlockSize), right16.subarray(i, i + sampleBlockSize));
+        if (mp3buf.length > 0) mp3Data.push(new Int8Array(mp3buf));
+      }
+      const mp3buf = mp3encoder.flush();
+      if (mp3buf.length > 0) mp3Data.push(new Int8Array(mp3buf));
+
+      const url = URL.createObjectURL(new Blob(mp3Data, { type: 'audio/mp3' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = "All_Answers.mp3"; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { console.error(e); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+  }
+
+  async function downloadAllZip() {
+    if (savedAnswers.length === 0) return;
+    const zip = new JSZip();
+    savedAnswers.forEach((ans) => { zip.file(`Answer_${ans.questionNum}.${ans.ext}`, ans.blob); });
+    const content = await zip.generateAsync({ type: "blob" });
+    const zipUrl = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = zipUrl; a.download = "Answers.zip"; a.click();
+    URL.revokeObjectURL(zipUrl);
+  }
+
+  function showResults() {
+    showScreen('screen-results');
+    const list = document.getElementById('results-list');
+    list.innerHTML = '';
+    if (savedAnswers.length === 0) {
+      list.innerHTML = '<p style="text-align:center; color:var(--text-light);">No answers recorded.</p>';
+      return;
+    }
+    savedAnswers.forEach((ans) => {
+      const url = URL.createObjectURL(ans.blob);
+      const div = document.createElement('div');
+      div.className = 'result-item';
+      div.innerHTML = `<div style="font-family: 'Orbitron'; font-weight: bold;">Question ${ans.questionNum}</div><a href="${url}" download="Answer_${ans.questionNum}.${ans.ext}" class="download-btn">Download</a>`;
+      list.appendChild(div);
+    });
+  }
+</script>
+
+</body>
+</html>
